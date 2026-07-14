@@ -1,8 +1,20 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import uuid
+from contextlib import asynccontextmanager
+from coordinator import database
 
-app = FastAPI(title= "ComputeLend Coordinator")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await database.connect()
+    async with database.get_pool().acquire() as conn:
+        version = await conn.fetchval("SELECT version();")
+        print(f"Connected: {version.split(',')[0]}")
+    yield
+    await database.disconnect()
+
+
+app = FastAPI(title= "ComputeLend Coordinator", lifespan=lifespan)
 
 class JobSubmit(BaseModel):
     code: str
