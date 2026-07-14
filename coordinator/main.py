@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import uuid
 from contextlib import asynccontextmanager
 from coordinator import database
+import json
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,12 +27,25 @@ class JobSubmit(BaseModel):
 @app.get("/")
 def root():
     return {"status": "coordinator running"}
-@app.post("/jobs/submit")
-def submit_job(job: JobSubmit):
-    job_id = str(uuid.uuid4())
-    return {"job_id": job_id,
-            "status": "queued",
-            "received_code_length": len(job.code)}
+@app.post("/jobs/submit", status_code=201)
+async def submit_job(job: JobSubmit):
+    async with database.get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO jobs (code, input_data,cpu_limit,memory_limit_mb)
+            VALUES ($1, $2::jsonb, $3, $4)
+            RETURNING id, status, submitted_at
+            """,
+            job.code,
+            json.dumps(job.input_data),
+            job.cpu_limit,
+            job.memory_limit_mb,
+        )
+        return {
+        "job_id": str(row["id"]),
+        "status": row["status"],
+        "submitted_at": row["submitted_at"],
+        }
 
 
 
