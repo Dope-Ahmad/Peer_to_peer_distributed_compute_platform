@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import uuid
+from uuid import UUID
 from contextlib import asynccontextmanager
 from coordinator import database
 import json
+from fastapi import HTTPException
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -46,6 +48,25 @@ async def submit_job(job: JobSubmit):
         "status": row["status"],
         "submitted_at": row["submitted_at"],
         }
+
+@app.get("/jobs/{job_id}/status")
+async def get_job_status(job_id: UUID):
+    async with database.get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+        """
+        SELECT id, status, worker_id, retry_count, submitted_at, started_at, completed_at
+        FROM jobs
+        WHERE id = $1
+        """,
+        job_id
+        )
+        if row is None:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        return dict(row)
+
+
+
 
 
 
