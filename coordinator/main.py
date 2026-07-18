@@ -91,6 +91,17 @@ async def register_worker(worker: WorkerRegister):
         "status": row["status"],
         "registered_at": row["registered_at"]}
 
-
+@app.post("/workers/{worker_id}/heartbeat")
+async def worker_heartbeat(worker_id: UUID):
+    async with database.get_pool().acquire() as conn:
+        result = await conn.execute(
+        """
+        UPDATE workers
+        SET last_seen = NOW(), status = CASE WHEN status = 'offline' THEN 'idle' ELSE status END WHERE id = $1
+        """,
+            worker_id)
+    if result == "UPDATE 0":
+        raise HTTPException(status_code=404, detail="Worker not found")
+    return {"acknowledged": True}
 
 
