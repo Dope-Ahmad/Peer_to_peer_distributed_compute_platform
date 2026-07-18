@@ -1,10 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from uuid import UUID
 from contextlib import asynccontextmanager
 from coordinator import database
 import json
-from fastapi import HTTPException
 
 
 @asynccontextmanager
@@ -25,6 +24,13 @@ class JobSubmit(BaseModel):
 
     cpu_limit: float = 1.0 #Minimum CPU Core
     memory_limit_mb: int = 512 #Minimum RAM MBs
+
+class WorkerRegister(BaseModel):
+    hostname: str
+    ip_address: str
+    port: int
+    cpu_cores: int
+    memory_limit: int
 
 @app.get("/")
 def root():
@@ -66,6 +72,24 @@ async def get_job_status(job_id: UUID):
         return dict(row)
 
 
+@app.post("/workers/register", status_code=201)
+async def register_worker(worker: WorkerRegister):
+    async with database.get_pool().acquire() as conn:
+        row = await conn.fetchrow(
+        """
+        INSERT INTO workers (hostname, ip_address, port, cpu_cores, memory_mb)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, status, registered_at
+        """,
+            worker.hostname,
+            worker.ip_address,
+            worker.port,
+            worker.cpu_cores,
+            worker.memory_limit,
+        )
+        return{"worker_id": str(row["id"]),
+        "status": row["status"],
+        "registered_at": row["registered_at"]}
 
 
 
