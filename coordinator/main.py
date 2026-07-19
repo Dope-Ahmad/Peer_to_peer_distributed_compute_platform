@@ -116,4 +116,13 @@ async def worker_heartbeat(worker_id: UUID):
         raise HTTPException(status_code=404, detail="Worker not found")
     return {"acknowledged": True}
 
-
+@app.get("/workers")
+async def get_workers():
+    async with database.get_pool().acquire() as conn:
+        workers = await conn.fetch(
+        """
+        SELECT id, hostname, ip_address, port, cpu_cores, memory_mb, status, last_seen, registered_at
+        FROM workers
+        ORDER BY last_seen DESC"""
+        )
+        return [dict(worker) for worker in workers]
