@@ -4,7 +4,10 @@ from uuid import UUID
 from contextlib import asynccontextmanager
 from coordinator import database
 import json
-
+import asyncio
+from coordinator.fault_detector import run_fault_detector
+import logging
+logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -12,7 +15,16 @@ async def lifespan(app: FastAPI):
     async with database.get_pool().acquire() as conn:
         version = await conn.fetchval("SELECT version();")
         print(f"Connected: {version.split(',')[0]}")
+
+    fault_task = asyncio.create_task(run_fault_detector())
     yield
+
+    fault_task.cancel()
+    try:
+        await fault_task
+    except asyncio.CancelledError:
+        pass
+
     await database.disconnect()
 
 
