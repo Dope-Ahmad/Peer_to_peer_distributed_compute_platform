@@ -8,6 +8,7 @@ import asyncio
 from coordinator.fault_detector import run_fault_detector
 import logging
 logging.basicConfig(level=logging.INFO)
+from coordinator.scheduler import run_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,13 +18,15 @@ async def lifespan(app: FastAPI):
         print(f"Connected: {version.split(',')[0]}")
 
     fault_task = asyncio.create_task(run_fault_detector())
+    scheduler_task = asyncio.create_task(run_scheduler())
     yield
 
-    fault_task.cancel()
-    try:
-        await fault_task
-    except asyncio.CancelledError:
-        pass
+    for task in (scheduler_task, fault_task):
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
     await database.disconnect()
 
