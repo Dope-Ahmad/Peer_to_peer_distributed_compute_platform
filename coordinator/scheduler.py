@@ -39,8 +39,8 @@ async def _schedule_pending_job():
             SELECT id, hostname
             FROM workers
             WHERE status = 'idle'
-                AND cpu_core >= $1
-                AND memory_limit_mb >= $2
+                AND cpu_cores >= $1
+                AND memory_mb >= $2
             ORDER BY last_seen DESC
             LIMIT 1
             FOR UPDATE SKIP LOCKED
