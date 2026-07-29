@@ -39,6 +39,7 @@ class JobSubmit(BaseModel):
 
     cpu_limit: float = 1.0 #Minimum CPU Core
     memory_limit_mb: int = 512 #Minimum RAM MBs
+    priority: int = 5
 
 class WorkerRegister(BaseModel):
     hostname: str
@@ -55,14 +56,15 @@ async def submit_job(job: JobSubmit):
     async with database.get_pool().acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO jobs (code, input_data,cpu_limit,memory_limit_mb)
-            VALUES ($1, $2::jsonb, $3, $4)
+            INSERT INTO jobs (code, input_data,cpu_limit,memory_limit_mb, priority)
+            VALUES ($1, $2::jsonb, $3, $4, $5)
             RETURNING id, status, submitted_at
             """,
             job.code,
             json.dumps(job.input_data),
             job.cpu_limit,
             job.memory_limit_mb,
+            job.priority,
         )
         return {
         "job_id": str(row["id"]),

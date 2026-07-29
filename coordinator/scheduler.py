@@ -54,7 +54,7 @@ async def _schedule_pending_job():
                 """
                 UPDATE jobs
                 SET status = 'dispatched',
-                    worker_id = $1,
+                    worker_id = $1
                 WHERE id = $2
                 """,
                 worker['id'],
