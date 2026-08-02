@@ -15,7 +15,7 @@ async def run_fault_detector():
             await _check_for_dead_workers()
         except Exception as e:
             logger.error(f"Fault detector error: {e}")
-            await asyncio.sleep(CHECK_INTERVAL_SEC)
+        await asyncio.sleep(CHECK_INTERVAL_SEC)
 
 async def _check_for_dead_workers():
     pool = get_pool()
