@@ -1,0 +1,6 @@
+import os
+
+COORDINATOR_URL = os.getenv("COORDINATOR_URL", "http://127.0.0.1:8000")
+WORKER_HOST = os.getenv("WORKER_HOST", "127.0.0.1")
+WORKER_PORT = int(os.getenv("WORKER_PORT", "8001"))
+HEARBEAT_INTERVAL = 10
