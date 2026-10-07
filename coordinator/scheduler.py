@@ -1,6 +1,10 @@
 import asyncio
 import logging
+
+import httpx
+
 from coordinator.database import get_pool
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +27,7 @@ async def _schedule_pending_job():
         async with conn.transaction():
             job = await conn.fetchrow(
             """
-            SELECT id, cpu_limit, memory_limit_mb
+            SELECT id, cpu_limit, memory_limit_mb, code, timeout_secs
             FROM jobs
             WHERE status = 'queued'
             ORDER BY priority ASC, submitted_at ASC
@@ -36,7 +40,7 @@ async def _schedule_pending_job():
 
             worker = await conn.fetchrow(
             """
-            SELECT id, hostname
+            SELECT id, hostname, ip_address, port
             FROM workers
             WHERE status = 'idle'
                 AND cpu_cores >= $1
@@ -72,6 +76,20 @@ async def _schedule_pending_job():
     return 1
 
 async def _dispatch_to_worker(job, worker):
-    logger.info(f"[DRY RUN] Dispatched job {job['id']} to worker "
-        f"{worker['hostname']} ({worker['id']})")
+    url = "https://"+worker['ip_address']+":"+worker['port']+"/execute"
+    payload = {
+        "job_id": str(job['id']),
+        "code": job['code'],
+        "input_data": json.loads(job['input_data']),
+        "cpu_limit": job['cpu_limit'],
+        "memory_limit_mb": job['memory_limit_mb'],
+        "timeout_secs": job['timeout_secs'],
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+    except httpx.HTTPError as e:
+
 
